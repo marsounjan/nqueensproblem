@@ -13,21 +13,28 @@ import androidx.compose.foundation.layout.safeContentPadding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
-import com.marsounjan.nqueensproblem.util.formatGameTime
 import com.marsounjan.nqueensproblem.ui.theme.NQueensTheme
+import com.marsounjan.nqueensproblem.util.formatGameTime
+import kotlinx.coroutines.isActive
 import nqueensproblem.shared.generated.resources.Res
 import nqueensproblem.shared.generated.resources.game_best_time
 import nqueensproblem.shared.generated.resources.game_no_record
 import nqueensproblem.shared.generated.resources.game_queens_left
 import org.jetbrains.compose.resources.stringResource
+import kotlin.time.TimeSource
 
 @Composable
 fun GameScreen(
@@ -35,11 +42,10 @@ fun GameScreen(
     modifier: Modifier = Modifier,
 ) {
     val state by viewModel.uiState.collectAsState()
-
     Column(
         modifier = modifier.fillMaxSize().safeContentPadding()
     ) {
-        GameTopBar(state = state)
+        GameTopBar(state = state, elapsedMillis = state.elapsedMillis)
         Spacer(Modifier.height(8.dp))
         GameBoard(
             state = state.boardState,
@@ -61,16 +67,44 @@ fun GameScreen(
     LifecycleEventEffect(Lifecycle.Event.ON_PAUSE) { viewModel.screenPaused() }
 }
 
+/**
+ * Ticks locally on every frame off [baseMillis] while [isRunning] is true, using a fresh
+ * monotonic time mark each time ticking (re)starts. [baseMillis] only changes on resume/pause/win,
+ * so it never restarts mid-tick.
+ */
 @Composable
-private fun GameTopBar(state: GameUiState) {
+private fun rememberTickingElapsedMillis(baseMillis: Long, isRunning: Boolean): Long {
+    var displayedMillis by remember { mutableStateOf(baseMillis) }
+
+    LaunchedEffect(baseMillis, isRunning) {
+        if (!isRunning) {
+            displayedMillis = baseMillis
+            return@LaunchedEffect
+        }
+        val startMark = TimeSource.Monotonic.markNow()
+        while (isActive) {
+            displayedMillis = baseMillis + startMark.elapsedNow().inWholeMilliseconds
+            withFrameNanos {}
+        }
+    }
+
+    return displayedMillis
+}
+
+@Composable
+private fun GameTopBar(state: GameUiState, elapsedMillis: Long) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
+            val displayedElapsedMillis = rememberTickingElapsedMillis(
+                baseMillis = state.elapsedMillis,
+                isRunning = state.isTimerRunning,
+            )
             Text(
-                formatGameTime(state.elapsedMillis),
+                formatGameTime(displayedElapsedMillis),
                 style = MaterialTheme.typography.bodyLarge
             )
         }

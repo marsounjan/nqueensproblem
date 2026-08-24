@@ -7,21 +7,21 @@ import com.marsounjan.nqueensproblem.data.BestTimesRepository
 import com.marsounjan.nqueensproblem.ui.navigation.Navigator
 import com.marsounjan.nqueensproblem.util.Sound
 import com.marsounjan.nqueensproblem.util.SoundPlayer
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.TimeMark
+import kotlin.time.TimeSource
 
 data class GameUiState(
     val boardState: GameBoardState,
     val elapsedMillis: Long,
+    val isTimerRunning: Boolean,
     val bestTimeMillis: Long?,
     val winDialog: WinDialogModel?,
 )
@@ -32,9 +32,10 @@ class GameViewModel(
     private val soundPlayer: SoundPlayer,
     private val navigator: Navigator,
     private val savedStateHandle: SavedStateHandle,
+    private val timeSource: TimeSource = TimeSource.Monotonic,
 ) : ViewModel() {
 
-    private val boardFlow = MutableStateFlow(
+    private val boardState = MutableStateFlow(
         GameBoardState(
             boardSize = this@GameViewModel.boardSize, queens = decodeQueens(
                 savedStateHandle[KEY_QUEENS],
@@ -42,56 +43,76 @@ class GameViewModel(
             )
         ),
     )
-    private val elapsedMillisFlow =
-        MutableStateFlow(savedStateHandle.get<Long>(KEY_ELAPSED_SECONDS) ?: 0L)
-    private val isNewBestFlow = MutableStateFlow(false)
 
-    private var tickerJob: Job? = null
+    // Elapsed time accumulated up to the last time the ticker was stopped (paused or won).
+    private val elapsedMillis =
+        MutableStateFlow(savedStateHandle.get<Long>(KEY_ELAPSED_MILLIS) ?: 0L)
+    private val isTimeRunning = MutableStateFlow(false)
+    private val isNewBest = MutableStateFlow(false)
+
+    // Set while the ticker is running; used to compute the exact elapsed time on demand.
+    private var tickerStartMark: TimeMark? = null
+
+    private val bestTime: Flow<Long?> =
+        bestTimesRepository.bestTimeMillis(this@GameViewModel.boardSize)
 
     val uiState: StateFlow<GameUiState> = combine(
-        boardFlow,
-        elapsedMillisFlow,
-        bestTimesRepository.bestTimeMillis(this@GameViewModel.boardSize),
-        isNewBestFlow,
-    ) { board, elapsedSeconds, bestTimeSeconds, isNewBest ->
-        board.toUiState(elapsedSeconds, bestTimeSeconds, isNewBest)
+        boardState,
+        elapsedMillis,
+        isTimeRunning,
+        bestTime,
+        isNewBest,
+    ) { board, elapsedMillis, isTimerRunning, bestTimeMillis, isNewBest ->
+        GameUiState(
+            boardState = board,
+            elapsedMillis = elapsedMillis,
+            isTimerRunning = isTimerRunning,
+            bestTimeMillis = bestTimeMillis,
+            winDialog = if (board.isSolved) {
+                WinDialogModel(
+                    elapsedMillis = elapsedMillis,
+                    isNewBest = isNewBest
+                )
+            } else null
+        )
     }.stateIn(
         scope = viewModelScope,
         started = SharingStarted.Eagerly,
-        initialValue = boardFlow.value.toUiState(
-            elapsedMillis = elapsedMillisFlow.value,
-            bestTimeSeconds = null,
-            isNewBest = false,
-        ),
+        initialValue =
+            GameUiState(
+                boardState = boardState.value,
+                elapsedMillis = elapsedMillis.value,
+                isTimerRunning = false,
+                bestTimeMillis = null,
+                winDialog = null,
+            )
     )
 
     /** Called when the game screen becomes (or stays) foregrounded/resumed. */
     fun screenResumed() {
-        if (tickerJob != null || boardFlow.value.isSolved) return
-        tickerJob = viewModelScope.launch {
-            while (isActive) {
-                delay(ELAPSED_TIME_UPDATE_PERIOD_MILLIS.milliseconds)
-                elapsedMillisFlow.value += ELAPSED_TIME_UPDATE_PERIOD_MILLIS
-                savedStateHandle[KEY_ELAPSED_SECONDS] = elapsedMillisFlow.value
-            }
-        }
+        if (tickerStartMark != null || boardState.value.isSolved) return
+        tickerStartMark = timeSource.markNow()
+        isTimeRunning.value = true
     }
 
     /** Called when the game screen is backgrounded/no longer resumed. */
     fun screenPaused() {
-        tickerJob?.cancel()
-        tickerJob = null
+        val startMark = tickerStartMark ?: return
+        elapsedMillis.value += startMark.elapsedNow().inWholeMilliseconds
+        tickerStartMark = null
+        isTimeRunning.value = false
+        savedStateHandle[KEY_ELAPSED_MILLIS] = elapsedMillis.value
     }
 
     fun cellTapped(position: GameBoardPosition) {
-        val previousBoard = boardFlow.value
+        val previousBoard = boardState.value
         if (previousBoard.isSolved) return
 
         val wasPlacing = position !in previousBoard.queens
         val newBoard = previousBoard.toggle(position)
         if (newBoard == previousBoard) return
 
-        boardFlow.value = newBoard
+        boardState.value = newBoard
         savedStateHandle[KEY_QUEENS] = encodeQueens(newBoard.queens, this@GameViewModel.boardSize)
 
         if (wasPlacing) {
@@ -111,37 +132,20 @@ class GameViewModel(
     }
 
     private fun onSolved() {
-        screenPaused()
+        screenPaused() // freezes and persists the exact elapsed time at the moment of winning
+        val finishTime = elapsedMillis.value
         viewModelScope.launch { soundPlayer.play(Sound.WIN) }
         viewModelScope.launch {
             val previousBest =
                 bestTimesRepository.bestTimeMillis(this@GameViewModel.boardSize).first()
-            val finishTime = elapsedMillisFlow.value
             bestTimesRepository.storeBestTime(this@GameViewModel.boardSize, finishTime)
-            isNewBestFlow.value = previousBest == null || finishTime < previousBest
+            isNewBest.value = previousBest == null || finishTime < previousBest
         }
     }
 
-    private fun GameBoardState.toUiState(
-        elapsedMillis: Long,
-        bestTimeSeconds: Long?,
-        isNewBest: Boolean
-    ) = GameUiState(
-        boardState = this,
-        elapsedMillis = elapsedMillis,
-        bestTimeMillis = bestTimeSeconds,
-        winDialog = if (isSolved) {
-            WinDialogModel(
-                elapsedMillis = elapsedMillis,
-                isNewBest = isNewBest
-            )
-        } else null,
-    )
-
     private companion object {
         const val KEY_QUEENS = "queens"
-        const val KEY_ELAPSED_SECONDS = "elapsed_seconds"
-        private const val ELAPSED_TIME_UPDATE_PERIOD_MILLIS: Long = 100
+        const val KEY_ELAPSED_MILLIS = "elapsed_millis"
     }
 }
 
