@@ -19,6 +19,8 @@ sealed interface NavigationRoute : NavKey {
 
 }
 
+// Registers each NavigationRoute subclass so the sealed NavKey type can be serialized/restored
+// polymorphically when the back stack is saved across process death.
 val navKeyConfiguration = SavedStateConfiguration {
     serializersModule = SerializersModule {
         polymorphic(NavKey::class) {

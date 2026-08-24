@@ -40,6 +40,8 @@ fun GameBoard(
 ) {
     BoxWithConstraints(modifier = modifier) {
         val availableSize = min(maxWidth, maxHeight)
+        // Cells shrink to fit the viewport, but never below MIN_CELL_SIZE; boards that would
+        // go smaller than that overflow instead and rely on the scroll modifiers below.
         val cellSize = maxOf(availableSize / state.boardSize, MIN_CELL_SIZE)
         val boardPixelSize = cellSize * state.boardSize
 

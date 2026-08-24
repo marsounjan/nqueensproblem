@@ -19,6 +19,8 @@ import com.marsounjan.nqueensproblem.ui.home.HomeScreenViewModel
 fun Navigation() {
     val backStack = rememberNavBackStack(navKeyConfiguration, NavigationRoute.Home)
     val navigator = viewModel { DefaultNavigator() }
+    // Keeps the longer-lived navigator pointed at the current backStack instance on every
+    // recomposition, since rememberNavBackStack's instance doesn't survive the same way.
     SideEffect { navigator.backStack = backStack }
 
     NavDisplay(

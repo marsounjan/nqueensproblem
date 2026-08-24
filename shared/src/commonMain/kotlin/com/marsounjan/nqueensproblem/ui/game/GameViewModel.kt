@@ -150,6 +150,8 @@ class GameViewModel(
     }
 }
 
+// SavedStateHandle needs a primitive-array-friendly type, so positions are packed into a
+// single Int (row * boardSize + col) rather than saving GameBoardPosition instances directly.
 private fun encodeQueens(queens: Set<GameBoardPosition>, boardSize: Int): IntArray =
     queens.map { it.row * boardSize + it.col }.toIntArray()
 

@@ -36,6 +36,8 @@ class HomeScreenViewModel(
     private val boardSize: StateFlow<Int> =
         savedStateHandle.getStateFlow(KEY_BOARD_SIZE, AppConfig.DEFAULT_BOARD_SIZE)
 
+    // distinctUntilChanged avoids re-emitting when switching board size lands on the same
+    // best time value (e.g. two sizes both without a record yet).
     private val bestTimeMillis: Flow<Long?> =
         boardSize
             .flatMapLatest { size -> bestTimesRepository.bestTimeMillis(size) }
