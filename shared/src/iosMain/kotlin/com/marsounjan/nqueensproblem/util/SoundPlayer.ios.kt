@@ -1,16 +1,12 @@
-package com.marsounjan.nqueensproblem.sound
+package com.marsounjan.nqueensproblem.util
 
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.usePinned
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.CoroutineStart
-import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.async
-import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import nqueensproblem.shared.generated.resources.Res
 import platform.AVFAudio.AVAudioPlayer
@@ -25,24 +21,19 @@ actual fun createSoundPlayer(): SoundPlayer = IosSoundPlayer()
  */
 class IosSoundPlayer : SoundPlayer {
 
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+    private val mutex = Mutex()
+    private val players = mutableMapOf<Sound, AVAudioPlayer?>()
 
-    private val safePlayer = lazyPlayer("files/queen_placed_safe.mp3")
-    private val conflictPlayer = lazyPlayer("files/queen_placed_conflict.mp3")
-    private val winPlayer = lazyPlayer("files/game_won.mp3")
-
-    override fun playQueenPlacedSafe() = play(safePlayer)
-    override fun playQueenPlacedConflict() = play(conflictPlayer)
-    override fun playWin() = play(winPlayer)
-
-    private fun lazyPlayer(resourcePath: String): Deferred<AVAudioPlayer?> =
-        scope.async(start = CoroutineStart.LAZY) { buildPlayer(Res.readBytes(resourcePath)) }
-
-    private fun play(playerDeferred: Deferred<AVAudioPlayer?>) {
-        scope.launch {
-            val player = playerDeferred.await()
-            withContext(Dispatchers.Main) { player?.playFromStart() }
+    override suspend fun play(sound: Sound) {
+        val player = mutex.withLock {
+            players[sound] ?: loadPlayer(sound.path).also { players[sound] = it }
         }
+        withContext(Dispatchers.Main) { player?.playFromStart() }
+    }
+
+    private suspend fun loadPlayer(resourcePath: String): AVAudioPlayer? {
+        val bytes = Res.readBytes(resourcePath)
+        return withContext(Dispatchers.Default) { buildPlayer(bytes) }
     }
 
     @OptIn(ExperimentalForeignApi::class)

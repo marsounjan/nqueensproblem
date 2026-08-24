@@ -23,47 +23,42 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.min
-import com.marsounjan.nqueensproblem.domain.Position
 import com.marsounjan.nqueensproblem.ui.theme.NQueensTheme
-import org.jetbrains.compose.resources.stringResource
 import nqueensproblem.shared.generated.resources.Res
 import nqueensproblem.shared.generated.resources.cell_empty
-import nqueensproblem.shared.generated.resources.cell_empty_attacked
 import nqueensproblem.shared.generated.resources.cell_queen
 import nqueensproblem.shared.generated.resources.cell_queen_conflicting
+import org.jetbrains.compose.resources.stringResource
 
 private val MIN_CELL_SIZE = 32.dp
 
 @Composable
-fun Chessboard(
-    boardSize: Int,
-    queens: Set<Position>,
-    conflictingQueens: Set<Position>,
-    attackedSquares: Set<Position>,
-    onCellTap: (Position) -> Unit,
+fun GameBoard(
+    state: GameBoardState,
+    onCellTap: (GameBoardPosition) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     BoxWithConstraints(modifier = modifier) {
         val availableSize = min(maxWidth, maxHeight)
-        val cellSize = maxOf(availableSize / boardSize, MIN_CELL_SIZE)
-        val boardPixelSize = cellSize * boardSize
+        val cellSize = maxOf(availableSize / state.boardSize, MIN_CELL_SIZE)
+        val boardPixelSize = cellSize * state.boardSize
 
         Column(
             modifier = Modifier
+                .align(Alignment.Center)
                 .horizontalScroll(rememberScrollState())
                 .verticalScroll(rememberScrollState())
                 .size(boardPixelSize),
         ) {
-            for (row in 0 until boardSize) {
+            for (row in 0 until state.boardSize) {
                 Row {
-                    for (col in 0 until boardSize) {
-                        val position = remember(row, col) { Position(row, col) }
+                    for (col in 0 until state.boardSize) {
+                        val position = remember(row, col) { GameBoardPosition(row, col) }
                         BoardCell(
                             cellSize = cellSize,
                             isDarkSquare = (row + col) % 2 == 1,
-                            hasQueen = position in queens,
-                            isConflicting = position in conflictingQueens,
-                            isAttacked = position in attackedSquares,
+                            hasQueen = position in state.queens,
+                            isConflicting = position in state.conflictingQueens,
                             onTap = { onCellTap(position) },
                         )
                     }
@@ -79,7 +74,6 @@ private fun BoardCell(
     isDarkSquare: Boolean,
     hasQueen: Boolean,
     isConflicting: Boolean,
-    isAttacked: Boolean,
     onTap: () -> Unit,
 ) {
     val colors = NQueensTheme.colors
@@ -90,7 +84,6 @@ private fun BoardCell(
         when {
             isConflicting -> Res.string.cell_queen_conflicting
             hasQueen -> Res.string.cell_queen
-            isAttacked -> Res.string.cell_empty_attacked
             else -> Res.string.cell_empty
         },
     )

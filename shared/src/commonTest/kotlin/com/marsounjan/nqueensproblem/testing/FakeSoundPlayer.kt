@@ -1,24 +1,16 @@
 package com.marsounjan.nqueensproblem.testing
 
-import com.marsounjan.nqueensproblem.sound.SoundPlayer
+import com.marsounjan.nqueensproblem.util.Sound
+import com.marsounjan.nqueensproblem.util.SoundPlayer
 
 class FakeSoundPlayer : SoundPlayer {
-    var safePlacementCount = 0
-        private set
-    var conflictPlacementCount = 0
-        private set
-    var winCount = 0
-        private set
+    private val counts = mutableMapOf<Sound, Int>()
 
-    override fun playQueenPlacedSafe() {
-        safePlacementCount++
-    }
+    val safePlacementCount get() = counts[Sound.QUEEN_PLACED_SAFE] ?: 0
+    val conflictPlacementCount get() = counts[Sound.QUEEN_PLACED_CONFLICT] ?: 0
+    val winCount get() = counts[Sound.WIN] ?: 0
 
-    override fun playQueenPlacedConflict() {
-        conflictPlacementCount++
-    }
-
-    override fun playWin() {
-        winCount++
+    override suspend fun play(sound: Sound) {
+        counts[sound] = (counts[sound] ?: 0) + 1
     }
 }

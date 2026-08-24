@@ -11,7 +11,6 @@
     <string name="setup_start">Start</string>
 
     <!-- Game screen -->
-    <string name="game_reset">Reset</string>
     <string name="game_best_time">Best: %1$s</string>
     <string name="game_no_record">No record yet</string>
     <string name="game_queens_left">Queens left: %1$d</string>
@@ -20,8 +19,7 @@
     <string name="win_title">Solved! 🎉</string>
     <string name="win_time">Time: %1$s</string>
     <string name="win_new_best">New best!</string>
-    <string name="win_play_again">Play again</string>
-    <string name="win_change_size">Change size</string>
+    <string name="win_ok">Cool!</string>
 
     <!-- Chessboard cell content descriptions -->
     <string name="cell_queen_conflicting">Queen, conflicting</string>

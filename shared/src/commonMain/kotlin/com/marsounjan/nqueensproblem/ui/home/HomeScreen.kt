@@ -19,8 +19,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
-import com.marsounjan.nqueensproblem.ui.navigation.Navigator
-import com.marsounjan.nqueensproblem.ui.formatElapsedSeconds
+import com.marsounjan.nqueensproblem.util.formatGameTime
 import org.jetbrains.compose.resources.stringResource
 import nqueensproblem.shared.generated.resources.Res
 import nqueensproblem.shared.generated.resources.app_title
@@ -34,7 +33,6 @@ import nqueensproblem.shared.generated.resources.setup_start
 @Composable
 fun HomeScreen(
     viewModel: HomeScreenViewModel,
-    navigator: Navigator,
     modifier : Modifier = Modifier
 ) {
     val state by viewModel.uiState.collectAsState()
@@ -51,7 +49,7 @@ fun HomeScreen(
         Text(
             text = if (bestTimeSeconds != null) {
                 stringResource(Res.string.setup_best_time_known, state.boardSize,
-                    formatElapsedSeconds(bestTimeSeconds)
+                    formatGameTime(bestTimeSeconds)
                 )
             } else {
                 stringResource(Res.string.setup_no_record, state.boardSize)
@@ -79,7 +77,7 @@ fun HomeScreen(
         }
 
         Spacer(Modifier.height(32.dp))
-        Button(onClick = { viewModel.onStartClicked(navigator) }) {
+        Button(onClick = { viewModel.onStartClicked() }) {
             Text(stringResource(Res.string.setup_start))
         }
     }

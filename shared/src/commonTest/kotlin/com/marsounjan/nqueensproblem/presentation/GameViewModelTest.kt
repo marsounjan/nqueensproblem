@@ -1,7 +1,7 @@
 package com.marsounjan.nqueensproblem.presentation
 
 import androidx.lifecycle.SavedStateHandle
-import com.marsounjan.nqueensproblem.domain.Position
+import com.marsounjan.nqueensproblem.ui.game.GameBoardPosition
 import com.marsounjan.nqueensproblem.testing.FakeBestTimesRepository
 import com.marsounjan.nqueensproblem.testing.FakeNavigator
 import com.marsounjan.nqueensproblem.testing.FakeSoundPlayer
@@ -17,7 +17,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 // A known, non-conflicting solution for a 4x4 board.
-private val FOUR_QUEENS_SOLUTION = listOf(Position(0, 1), Position(1, 3), Position(2, 0), Position(3, 2))
+private val FOUR_QUEENS_SOLUTION = listOf(GameBoardPosition(0, 1), GameBoardPosition(1, 3), GameBoardPosition(2, 0), GameBoardPosition(3, 2))
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class GameViewModelTest : ViewModelTest() {
@@ -26,8 +26,9 @@ class GameViewModelTest : ViewModelTest() {
         boardSize: Int = 4,
         repository: FakeBestTimesRepository = FakeBestTimesRepository(),
         soundPlayer: FakeSoundPlayer = FakeSoundPlayer(),
+        navigator: FakeNavigator = FakeNavigator(),
         savedStateHandle: SavedStateHandle = SavedStateHandle(),
-    ) = GameViewModel(boardSize, repository, soundPlayer, savedStateHandle)
+    ) = GameViewModel(boardSize, repository, soundPlayer, navigator, savedStateHandle)
 
     @Test
     fun initialState_isAnEmptyBoardWithNoElapsedTime() = runTest(testDispatcher) {
@@ -37,42 +38,42 @@ class GameViewModelTest : ViewModelTest() {
         assertEquals(4, state.boardSize)
         assertTrue(state.queens.isEmpty())
         assertEquals(4, state.queensRemaining)
-        assertEquals(0, state.elapsedSeconds)
+        assertEquals(0, state.elapsedMillis)
         assertFalse(state.isSolved)
     }
 
     @Test
-    fun tapCell_onEmptySquare_placesQueenAndPlaysSafeSound() = runTest(testDispatcher) {
+    fun onCell_Tapped_onEmptySquare_placesQueenAndPlaysSafeSound() = runTest(testDispatcher) {
         val soundPlayer = FakeSoundPlayer()
         val viewModel = createViewModel(soundPlayer = soundPlayer)
 
-        viewModel.tapCell(Position(0, 1))
+        viewModel.cellTapped(GameBoardPosition(0, 1))
 
-        assertEquals(setOf(Position(0, 1)), viewModel.uiState.value.queens)
+        assertEquals(setOf(GameBoardPosition(0, 1)), viewModel.uiState.value.queens)
         assertEquals(1, soundPlayer.safePlacementCount)
         assertEquals(0, soundPlayer.conflictPlacementCount)
     }
 
     @Test
-    fun tapCell_creatingAConflict_playsConflictSound() = runTest(testDispatcher) {
+    fun onCell_Tapped_creatingAConflict_playsConflictSound() = runTest(testDispatcher) {
         val soundPlayer = FakeSoundPlayer()
         val viewModel = createViewModel(soundPlayer = soundPlayer)
 
-        viewModel.tapCell(Position(0, 0))
-        viewModel.tapCell(Position(0, 1)) // same row as the first queen
+        viewModel.cellTapped(GameBoardPosition(0, 0))
+        viewModel.cellTapped(GameBoardPosition(0, 1)) // same row as the first queen
 
-        assertTrue(Position(0, 1) in viewModel.uiState.value.conflictingQueens)
+        assertTrue(GameBoardPosition(0, 1) in viewModel.uiState.value.conflictingQueens)
         assertEquals(1, soundPlayer.safePlacementCount)
         assertEquals(1, soundPlayer.conflictPlacementCount)
     }
 
     @Test
-    fun tapCell_onOccupiedSquare_removesQueen_withoutPlayingASound() = runTest(testDispatcher) {
+    fun onCell_Tapped_onOccupiedSquare_removesQueen_withoutPlayingASound() = runTest(testDispatcher) {
         val soundPlayer = FakeSoundPlayer()
         val viewModel = createViewModel(soundPlayer = soundPlayer)
 
-        viewModel.tapCell(Position(0, 0))
-        viewModel.tapCell(Position(0, 0))
+        viewModel.cellTapped(GameBoardPosition(0, 0))
+        viewModel.cellTapped(GameBoardPosition(0, 0))
 
         assertTrue(viewModel.uiState.value.queens.isEmpty())
         assertEquals(1, soundPlayer.safePlacementCount)
@@ -87,7 +88,7 @@ class GameViewModelTest : ViewModelTest() {
         advanceTimeBy(3_500)
         runCurrent()
 
-        assertEquals(3, viewModel.uiState.value.elapsedSeconds)
+        assertEquals(3, viewModel.uiState.value.elapsedMillis)
         viewModel.screenPaused() // stop the ticker so the test scheduler can go idle
     }
 
@@ -102,7 +103,7 @@ class GameViewModelTest : ViewModelTest() {
         advanceTimeBy(5_000)
         runCurrent()
 
-        assertEquals(2, viewModel.uiState.value.elapsedSeconds)
+        assertEquals(2, viewModel.uiState.value.elapsedMillis)
     }
 
     @Test
@@ -115,7 +116,7 @@ class GameViewModelTest : ViewModelTest() {
         advanceTimeBy(4_000)
         runCurrent()
 
-        FOUR_QUEENS_SOLUTION.forEach { viewModel.tapCell(it) }
+        FOUR_QUEENS_SOLUTION.forEach { viewModel.cellTapped(it) }
         runCurrent()
 
         val state = viewModel.uiState.value
@@ -127,7 +128,7 @@ class GameViewModelTest : ViewModelTest() {
         // Timer no longer runs after solving.
         advanceTimeBy(5_000)
         runCurrent()
-        assertEquals(4, viewModel.uiState.value.elapsedSeconds)
+        assertEquals(4, viewModel.uiState.value.elapsedMillis)
     }
 
     @Test
@@ -139,21 +140,21 @@ class GameViewModelTest : ViewModelTest() {
         advanceTimeBy(4_000)
         runCurrent()
 
-        FOUR_QUEENS_SOLUTION.forEach { viewModel.tapCell(it) }
+        FOUR_QUEENS_SOLUTION.forEach { viewModel.cellTapped(it) }
         runCurrent()
 
         assertFalse(viewModel.uiState.value.isNewBest)
-        assertEquals(2, viewModel.uiState.value.bestTimeSeconds) // unbeaten best stays
+        assertEquals(2, viewModel.uiState.value.bestTimeMillis) // unbeaten best stays
     }
 
     @Test
-    fun tapCell_afterSolved_isIgnored() = runTest(testDispatcher) {
+    fun onCell_Tapped_afterSolved_isIgnored() = runTest(testDispatcher) {
         val viewModel = createViewModel()
-        FOUR_QUEENS_SOLUTION.forEach { viewModel.tapCell(it) }
+        FOUR_QUEENS_SOLUTION.forEach { viewModel.cellTapped(it) }
         runCurrent()
 
         val solvedQueens = viewModel.uiState.value.queens
-        viewModel.tapCell(Position(0, 0))
+        viewModel.cellTapped(GameBoardPosition(0, 0))
 
         assertEquals(solvedQueens, viewModel.uiState.value.queens)
     }
@@ -166,20 +167,20 @@ class GameViewModelTest : ViewModelTest() {
         viewModel.screenResumed()
         advanceTimeBy(3_000)
         runCurrent()
-        viewModel.tapCell(Position(0, 0))
+        viewModel.cellTapped(GameBoardPosition(0, 0))
 
         viewModel.reset()
 
         val state = viewModel.uiState.value
         assertTrue(state.queens.isEmpty())
-        assertEquals(0, state.elapsedSeconds)
+        assertEquals(0, state.elapsedMillis)
         assertFalse(state.isSolved)
         assertFalse(state.isNewBest)
 
         // Timer was paused by reset(), so time shouldn't advance until resume() is called again.
         advanceTimeBy(5_000)
         runCurrent()
-        assertEquals(0, viewModel.uiState.value.elapsedSeconds)
+        assertEquals(0, viewModel.uiState.value.elapsedMillis)
     }
 
     @Test
@@ -189,22 +190,22 @@ class GameViewModelTest : ViewModelTest() {
         firstViewModel.screenResumed()
         advanceTimeBy(6_000)
         runCurrent()
-        firstViewModel.tapCell(Position(0, 1))
+        firstViewModel.cellTapped(GameBoardPosition(0, 1))
         firstViewModel.screenPaused()
 
         val recreatedViewModel = createViewModel(savedStateHandle = savedStateHandle)
         val state = recreatedViewModel.uiState.value
 
-        assertEquals(setOf(Position(0, 1)), state.queens)
-        assertEquals(6, state.elapsedSeconds)
+        assertEquals(setOf(GameBoardPosition(0, 1)), state.queens)
+        assertEquals(6, state.elapsedMillis)
     }
 
     @Test
     fun onChangeSizeClicked_navigatesBack() = runTest(testDispatcher) {
         val navigator = FakeNavigator()
-        val viewModel = createViewModel()
+        val viewModel = createViewModel(navigator = navigator)
 
-        viewModel.onChangeSizeClicked(navigator)
+        viewModel.winDialogConfirmClicked()
 
         assertEquals(1, navigator.goBackCallCount)
     }

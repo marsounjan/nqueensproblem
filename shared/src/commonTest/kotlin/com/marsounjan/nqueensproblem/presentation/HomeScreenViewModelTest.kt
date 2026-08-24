@@ -15,8 +15,9 @@ class HomeScreenViewModelTest : ViewModelTest() {
 
     private fun createViewModel(
         repository: FakeBestTimesRepository = FakeBestTimesRepository(),
+        navigator: FakeNavigator = FakeNavigator(),
         savedStateHandle: SavedStateHandle = SavedStateHandle(),
-    ) = HomeScreenViewModel(repository, savedStateHandle)
+    ) = HomeScreenViewModel(repository, navigator, savedStateHandle)
 
     @Test
     fun initialState_defaultsToMinBoardSize_withNoBestTime() = runTest(testDispatcher) {
@@ -67,10 +68,10 @@ class HomeScreenViewModelTest : ViewModelTest() {
     @Test
     fun onStartClicked_navigatesToGame_withCurrentlySelectedBoardSize() = runTest(testDispatcher) {
         val navigator = FakeNavigator()
-        val viewModel = createViewModel()
+        val viewModel = createViewModel(navigator = navigator)
         viewModel.onBoardSizeChanged(6)
 
-        viewModel.onStartClicked(navigator)
+        viewModel.onStartClicked()
 
         assertEquals(listOf(6), navigator.openGameCalls)
     }

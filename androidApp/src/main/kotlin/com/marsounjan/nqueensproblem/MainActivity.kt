@@ -11,8 +11,6 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         super.onCreate(savedInstanceState)
 
-        AppServices.init(filesDir.absolutePath)
-
         setContent {
             NQueensApp()
         }
