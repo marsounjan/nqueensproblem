@@ -9,6 +9,8 @@ class to get there. A few things I had fun with, or made a point of getting righ
 3. Elapsed time pauses the moment the app goes to the background
 4. App state survives being backgrounded (or killed) mid-game
 
+https://github.com/user-attachments/assets/4a0f61c2-a2a5-4a8f-bbc4-1595c50b260a
+
 ## Project structure
 
 - [`/shared`](./shared/src) — all app code (UI, view models, navigation, persistence, sound),
