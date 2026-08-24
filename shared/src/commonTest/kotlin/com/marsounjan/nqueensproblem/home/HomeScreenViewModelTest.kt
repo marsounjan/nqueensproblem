@@ -1,4 +1,4 @@
-package com.marsounjan.nqueensproblem.presentation
+package com.marsounjan.nqueensproblem.home
 
 import androidx.lifecycle.SavedStateHandle
 import com.marsounjan.nqueensproblem.AppConfig
@@ -6,6 +6,8 @@ import com.marsounjan.nqueensproblem.testing.FakeBestTimesRepository
 import com.marsounjan.nqueensproblem.testing.FakeNavigator
 import com.marsounjan.nqueensproblem.testing.ViewModelTest
 import com.marsounjan.nqueensproblem.ui.home.HomeScreenViewModel
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -13,11 +15,14 @@ import kotlin.test.assertNull
 
 class HomeScreenViewModelTest : ViewModelTest() {
 
-    private fun createViewModel(
+    // uiState only starts combining (SharingStarted.WhileSubscribed5s) once it has a collector,
+    // so tests need an active subscriber for `.value` to reflect anything beyond initialValue.
+    private fun TestScope.createViewModel(
         repository: FakeBestTimesRepository = FakeBestTimesRepository(),
         navigator: FakeNavigator = FakeNavigator(),
         savedStateHandle: SavedStateHandle = SavedStateHandle(),
     ) = HomeScreenViewModel(repository, navigator, savedStateHandle)
+        .also { it.uiState.launchIn(backgroundScope) }
 
     @Test
     fun initialState_defaultsToMinBoardSize_withNoBestTime() = runTest(testDispatcher) {
@@ -56,14 +61,15 @@ class HomeScreenViewModelTest : ViewModelTest() {
     }
 
     @Test
-    fun boardSizeSelection_survivesRecreationFromTheSameSavedStateHandle() = runTest(testDispatcher) {
-        val savedStateHandle = SavedStateHandle()
-        val firstViewModel = createViewModel(savedStateHandle = savedStateHandle)
-        firstViewModel.onBoardSizeChanged(8)
+    fun boardSizeSelection_survivesRecreationFromTheSameSavedStateHandle() =
+        runTest(testDispatcher) {
+            val savedStateHandle = SavedStateHandle()
+            val firstViewModel = createViewModel(savedStateHandle = savedStateHandle)
+            firstViewModel.onBoardSizeChanged(8)
 
-        val recreatedViewModel = createViewModel(savedStateHandle = savedStateHandle)
-        assertEquals(8, recreatedViewModel.uiState.value.boardSize)
-    }
+            val recreatedViewModel = createViewModel(savedStateHandle = savedStateHandle)
+            assertEquals(8, recreatedViewModel.uiState.value.boardSize)
+        }
 
     @Test
     fun onStartClicked_navigatesToGame_withCurrentlySelectedBoardSize() = runTest(testDispatcher) {

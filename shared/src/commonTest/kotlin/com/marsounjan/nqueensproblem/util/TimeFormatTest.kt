@@ -1,6 +1,5 @@
-package com.marsounjan.nqueensproblem.ui
+package com.marsounjan.nqueensproblem.util
 
-import com.marsounjan.nqueensproblem.util.formatGameTime
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

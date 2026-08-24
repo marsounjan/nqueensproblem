@@ -1,4 +1,4 @@
-package com.marsounjan.nqueensproblem.presentation
+package com.marsounjan.nqueensproblem.game
 
 import androidx.lifecycle.SavedStateHandle
 import com.marsounjan.nqueensproblem.testing.FakeBestTimesRepository
@@ -8,6 +8,8 @@ import com.marsounjan.nqueensproblem.testing.FakeTimeSource
 import com.marsounjan.nqueensproblem.testing.ViewModelTest
 import com.marsounjan.nqueensproblem.ui.game.GameBoardPosition
 import com.marsounjan.nqueensproblem.ui.game.GameViewModel
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -21,7 +23,9 @@ private val FOUR_QUEENS_SOLUTION = listOf(GameBoardPosition(0, 1), GameBoardPosi
 
 class GameViewModelTest : ViewModelTest() {
 
-    private fun createViewModel(
+    // uiState only starts combining (SharingStarted.WhileSubscribed5s) once it has a collector,
+    // so tests need an active subscriber for `.value` to reflect anything beyond initialValue.
+    private fun TestScope.createViewModel(
         boardSize: Int = 4,
         repository: FakeBestTimesRepository = FakeBestTimesRepository(),
         soundPlayer: FakeSoundPlayer = FakeSoundPlayer(),
@@ -29,6 +33,7 @@ class GameViewModelTest : ViewModelTest() {
         savedStateHandle: SavedStateHandle = SavedStateHandle(),
         timeSource: FakeTimeSource = FakeTimeSource(),
     ) = GameViewModel(boardSize, repository, soundPlayer, navigator, savedStateHandle, timeSource)
+        .also { it.uiState.launchIn(backgroundScope) }
 
     @Test
     fun initialState_isAnEmptyBoardWithNoElapsedTime() = runTest(testDispatcher) {
