@@ -8,6 +8,7 @@ import com.marsounjan.nqueensproblem.AppConfig
 import com.marsounjan.nqueensproblem.data.BestTimesRepository
 import com.marsounjan.nqueensproblem.ui.navigation.NavigationRoute
 import com.marsounjan.nqueensproblem.ui.navigation.Navigator
+import com.marsounjan.nqueensproblem.util.WhileSubscribed5s
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -51,7 +52,7 @@ class HomeScreenViewModel(
             )
         }.stateIn(
             scope = viewModelScope,
-            started = SharingStarted.Eagerly,
+            started = SharingStarted.WhileSubscribed5s,
             initialValue = HomeScreenUiState(
                 boardSize = boardSize.value,
                 bestTimeSeconds = null

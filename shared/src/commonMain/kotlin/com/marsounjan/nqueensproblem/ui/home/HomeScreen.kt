@@ -12,30 +12,30 @@ import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.marsounjan.nqueensproblem.util.formatGameTime
-import org.jetbrains.compose.resources.stringResource
 import nqueensproblem.shared.generated.resources.Res
 import nqueensproblem.shared.generated.resources.app_title
 import nqueensproblem.shared.generated.resources.setup_best_time_known
-import nqueensproblem.shared.generated.resources.setup_no_record
 import nqueensproblem.shared.generated.resources.setup_board_size_label
 import nqueensproblem.shared.generated.resources.setup_decrease_board_size
 import nqueensproblem.shared.generated.resources.setup_increase_board_size
+import nqueensproblem.shared.generated.resources.setup_no_record
 import nqueensproblem.shared.generated.resources.setup_start
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun HomeScreen(
     viewModel: HomeScreenViewModel,
     modifier : Modifier = Modifier
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
 
     Column(
         modifier = modifier.fillMaxSize().safeContentPadding(),

@@ -14,7 +14,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -26,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.LifecycleEventEffect
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.marsounjan.nqueensproblem.ui.theme.NQueensTheme
 import com.marsounjan.nqueensproblem.util.formatGameTime
 import kotlinx.coroutines.isActive
@@ -41,11 +41,11 @@ fun GameScreen(
     viewModel: GameViewModel,
     modifier: Modifier = Modifier,
 ) {
-    val state by viewModel.uiState.collectAsState()
+    val state by viewModel.uiState.collectAsStateWithLifecycle()
     Column(
         modifier = modifier.fillMaxSize().safeContentPadding()
     ) {
-        GameTopBar(state = state, elapsedMillis = state.elapsedMillis)
+        GameTopBar(state = state)
         Spacer(Modifier.height(8.dp))
         GameBoard(
             state = state.boardState,
@@ -92,7 +92,7 @@ private fun rememberTickingElapsedMillis(baseMillis: Long, isRunning: Boolean): 
 }
 
 @Composable
-private fun GameTopBar(state: GameUiState, elapsedMillis: Long) {
+private fun GameTopBar(state: GameUiState) {
     Column(modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth(),
@@ -130,7 +130,7 @@ private fun QueensRemainingIndicator(remaining: Int) {
         )
         Spacer(Modifier.height(4.dp))
         FlowRow(
-            modifier = Modifier.fillMaxWidth(0.9f),
+            modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally),
         ) {
             repeat(remaining) {

@@ -7,6 +7,7 @@ import com.marsounjan.nqueensproblem.data.BestTimesRepository
 import com.marsounjan.nqueensproblem.ui.navigation.Navigator
 import com.marsounjan.nqueensproblem.util.Sound
 import com.marsounjan.nqueensproblem.util.SoundPlayer
+import com.marsounjan.nqueensproblem.util.WhileSubscribed5s
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -77,7 +78,7 @@ class GameViewModel(
         )
     }.stateIn(
         scope = viewModelScope,
-        started = SharingStarted.Eagerly,
+        started = SharingStarted.WhileSubscribed5s,
         initialValue =
             GameUiState(
                 boardState = boardState.value,
